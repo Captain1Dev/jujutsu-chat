@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #000;
+}
+
+@keyframes fireball-fly {
+  0% {
+    transform: translate(-120%, 40%) scale(0.4);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(120%, -30%) scale(1.4);
+    opacity: 0;
+  }
+}
+
+@keyframes fireball-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 30px 10px rgba(251, 146, 60, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 60px 25px rgba(239, 68, 68, 0.9);
+  }
+}
+
+@keyframes fireball-text-pop {
+  0% {
+    transform: translate(-50%, 0) scale(0.5);
+    opacity: 0;
+  }
+  20% {
+    transform: translate(-50%, 0) scale(1.1);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -20px) scale(1);
+    opacity: 0;
+  }
+}
+
+.fireball-core {
+  position: absolute;
+  top: 55%;
+  left: 10%;
+  width: 80px;
+  height: 80px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 35%, #fef08a, #f97316 55%, #dc2626);
+  animation: fireball-fly 2s ease-in-out forwards, fireball-pulse 0.3s ease-in-out infinite;
+}
+
+.fireball-trail {
+  position: absolute;
+  top: 58%;
+  left: 5%;
+  width: 200px;
+  height: 40px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, rgba(249, 115, 22, 0.5), transparent);
+  filter: blur(8px);
+  animation: fireball-fly 2s ease-in-out forwards;
+}
+
+.fireball-text {
+  animation: fireball-text-pop 2s ease-out forwards;
+}

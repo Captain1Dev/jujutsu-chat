@@ -50,13 +50,29 @@ This repo is configured for Vercel via `vercel.json`.
 
 ## Deploy signaling server (Render)
 
-1. Create a new **Web Service** on [Render](https://render.com)
-2. Connect this GitHub repo
-3. Set **Root Directory** to `server`
-4. **Build Command:** `npm install`
-5. **Start Command:** `npm start`
-6. Add environment variable:
-   - `CLIENT_ORIGIN` = `https://your-app.vercel.app` (comma-separate multiple origins if needed)
+### Option A — Deploy from repo root (easiest)
+
+| Setting | Value |
+|---------|-------|
+| **Root Directory** | *(leave blank)* |
+| **Build Command** | `npm run build:server` |
+| **Start Command** | `npm start` |
+
+The `server/ $` prefix only appears when Root Directory is set to `server`. Leave it blank to avoid that UI.
+
+### Option B — Deploy from `server` folder
+
+| Setting | Value |
+|---------|-------|
+| **Root Directory** | `server` |
+| **Build Command** | `npm install` |
+| **Start Command** | `npm start` |
+
+If Render shows `server/ $` before the input, that is just a label — type only `npm install` or `npm start` after the `$`.
+
+### Environment variable (both options)
+
+- `CLIENT_ORIGIN` = `https://your-app.vercel.app`
 
 Or use the included `render.yaml` blueprint.
 

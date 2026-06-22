@@ -14,14 +14,30 @@ const PORT = process.env.PORT || 3001;
 
 function getAllowedOrigins() {
   const raw = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
-  return raw.split(',').map((origin) => origin.trim()).filter(Boolean);
+  return raw
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+}
+
+function normalizeOrigin(origin) {
+  return origin?.replace(/\/$/, '') ?? '';
 }
 
 function isOriginAllowed(origin) {
   if (!origin) return true;
 
+  const normalized = normalizeOrigin(origin);
   const allowedOrigins = getAllowedOrigins();
-  if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+
+  if (allowedOrigins.includes('*') || allowedOrigins.includes(normalized)) {
+    return true;
+  }
+
+  if (
+    normalized.endsWith('.vercel.app') &&
+    allowedOrigins.some((allowed) => allowed.includes('vercel.app'))
+  ) {
     return true;
   }
 
@@ -30,22 +46,21 @@ function isOriginAllowed(origin) {
     const pattern = allowed
       .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       .replace(/\\\*/g, '.*');
-    return new RegExp(`^${pattern}$`).test(origin);
+    return new RegExp(`^${pattern}$`).test(normalized);
   });
 }
 
+function corsOriginCallback(origin, callback) {
+  if (isOriginAllowed(origin)) {
+    callback(null, true);
+  } else {
+    console.warn(`[cors] blocked origin: ${origin}`);
+    callback(null, false);
+  }
+}
+
 const app = express();
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (isOriginAllowed(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-  }),
-);
+app.use(cors({ origin: corsOriginCallback }));
 app.use(express.json());
 
 app.get('/health', (req, res) => {
@@ -85,13 +100,7 @@ app.get('/', (_req, res) => {
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: (origin, callback) => {
-      if (isOriginAllowed(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: corsOriginCallback,
     methods: ['GET', 'POST'],
   },
 });

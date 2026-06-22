@@ -3,6 +3,7 @@ import { Hands } from '@mediapipe/hands';
 import { Camera } from '@mediapipe/camera_utils';
 import { drawConnectors, drawLandmarks, HAND_CONNECTIONS } from '@mediapipe/drawing_utils';
 import { detectSpellSign } from '../utils/gestures.js';
+import { createGestureStabilizer } from '../utils/gestureStabilizer.js';
 
 const MEDIAPIPE_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands';
 
@@ -10,6 +11,7 @@ export function useMediaPipe(videoRef, enabled) {
   const canvasRef = useRef(null);
   const [gesture, setGesture] = useState(null);
   const [tracking, setTracking] = useState(false);
+  const stabilizerRef = useRef(createGestureStabilizer());
 
   useEffect(() => {
     if (!enabled || !videoRef.current) {
@@ -23,6 +25,10 @@ export function useMediaPipe(videoRef, enabled) {
     }
 
     let active = true;
+    stabilizerRef.current = createGestureStabilizer({
+      confirmFrames: 7,
+      releaseFrames: 5,
+    });
 
     const hands = new Hands({
       locateFile: (file) => `${MEDIAPIPE_CDN}/${file}`,
@@ -32,7 +38,7 @@ export function useMediaPipe(videoRef, enabled) {
       maxNumHands: 2,
       modelComplexity: 1,
       minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.6,
+      minTrackingConfidence: 0.65,
     });
 
     hands.onResults((results) => {
@@ -45,7 +51,7 @@ export function useMediaPipe(videoRef, enabled) {
       ctx.save();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      let detected = null;
+      let rawSign = null;
 
       if (results.multiHandLandmarks?.length) {
         for (const landmarks of results.multiHandLandmarks) {
@@ -60,11 +66,13 @@ export function useMediaPipe(videoRef, enabled) {
           });
         }
 
-        detected = detectSpellSign(results.multiHandLandmarks);
+        rawSign = detectSpellSign(results.multiHandLandmarks);
       }
 
       ctx.restore();
-      setGesture(detected);
+
+      const stableSign = stabilizerRef.current.update(rawSign);
+      setGesture(stableSign);
     });
 
     const camera = new Camera(video, {
@@ -85,6 +93,7 @@ export function useMediaPipe(videoRef, enabled) {
       active = false;
       setTracking(false);
       setGesture(null);
+      stabilizerRef.current.reset();
       camera.stop();
       hands.close();
     };

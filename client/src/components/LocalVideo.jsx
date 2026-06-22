@@ -28,7 +28,7 @@ export default function LocalVideo({ stream, onGestureChange }) {
       />
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 w-full h-full pointer-events-none opacity-0"
+        className="absolute inset-0 w-full h-full pointer-events-none opacity-59"
         style={{ transform: 'scaleX(-1)' }}
         aria-hidden="true"
       />

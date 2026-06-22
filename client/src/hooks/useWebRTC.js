@@ -213,10 +213,12 @@ export function useWebRTC(socket, localStream) {
     [flushPendingCandidates, updateStatus],
   );
 
-  const sendSpell = useCallback((name) => {
+  const sendSpell = useCallback((payload) => {
     const channel = dataChannelRef.current;
     if (channel?.readyState === 'open') {
-      channel.send(JSON.stringify({ type: 'spell', name }));
+      const message =
+        typeof payload === 'string' ? { type: 'spell', name: payload } : payload;
+      channel.send(JSON.stringify(message));
     }
   }, []);
 

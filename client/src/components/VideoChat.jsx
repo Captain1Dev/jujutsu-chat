@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSocket } from '../hooks/useSocket.js';
 import { useWebRTC } from '../hooks/useWebRTC.js';
-import { GESTURE_LABELS, SPELL_SEQUENCE } from '../utils/gestures.js';
-import { createSpellEngine } from '../utils/spellEngine.js';
+import { GESTURE_LABELS, SIGN_HAND_REQUIREMENTS } from '../utils/gestures.js';
+import { createSpellEngine, SPELL_RECIPES } from '../utils/spellEngine.js';
 import LocalVideo from './LocalVideo.jsx';
 import RemoteVideo from './RemoteVideo.jsx';
 import NextButton from './NextButton.jsx';
@@ -16,12 +16,33 @@ const STATUS_MESSAGES = {
   'partner-left': 'Stranger disconnected. Finding someone new...',
 };
 
+function SignPill({ sign, sequence, progress, gesture, isActive }) {
+  const index = sequence.indexOf(sign);
+  const done = isActive && progress.length > index && progress[index] === sign;
+  const current = isActive && progress.length === index && gesture === sign;
+
+  return (
+    <span
+      className={`px-2 py-0.5 rounded ${
+        done
+          ? 'bg-orange-600 text-white'
+          : current
+            ? 'bg-orange-500/40 text-orange-200 ring-1 ring-orange-400'
+            : 'bg-zinc-800 text-zinc-400'
+      }`}
+    >
+      {GESTURE_LABELS[sign]}
+    </span>
+  );
+}
+
 export default function VideoChat() {
-  const { socket, connected } = useSocket();
+  const { socket, connected, connectionError } = useSocket();
   const [localStream, setLocalStream] = useState(null);
   const [error, setError] = useState(null);
   const [gesture, setGesture] = useState(null);
   const [sequenceProgress, setSequenceProgress] = useState([]);
+  const [activeRecipeIds, setActiveRecipeIds] = useState([]);
   const [activeSpell, setActiveSpell] = useState(null);
   const spellEngineRef = useRef(null);
   const spellKeyRef = useRef(0);
@@ -41,7 +62,7 @@ export default function VideoChat() {
   useEffect(() => {
     spellEngineRef.current = createSpellEngine((name) => {
       triggerSpell(name);
-      sendSpell(name);
+      sendSpell({ type: 'spell', name });
     });
   }, [sendSpell, triggerSpell]);
 
@@ -59,6 +80,7 @@ export default function VideoChat() {
     const result = spellEngineRef.current?.push(gesture);
     if (result) {
       setSequenceProgress(result.progress);
+      setActiveRecipeIds(result.activeRecipeIds);
     }
   }, [gesture, status]);
 
@@ -66,6 +88,7 @@ export default function VideoChat() {
     if (status !== 'connected') {
       spellEngineRef.current?.reset();
       setSequenceProgress([]);
+      setActiveRecipeIds([]);
     }
   }, [status]);
 
@@ -147,34 +170,47 @@ export default function VideoChat() {
       <div className="absolute top-0 left-0 right-0 z-10 p-4 bg-gradient-to-b from-black/70 to-transparent">
         <h1 className="text-xl font-bold tracking-wide">JutsuChat</h1>
         <p className="text-sm text-zinc-300 mt-1">
-          {STATUS_MESSAGES[status] ?? status}
-          {!connected && ' (reconnecting to server...)'}
+          {localStream && !connected
+            ? 'Camera ready — connecting to server...'
+            : STATUS_MESSAGES[status] ?? status}
         </p>
+        {connectionError && (
+          <p className="text-sm text-red-400 mt-2 max-w-xl">{connectionError}</p>
+        )}
         {gesture && (
           <p className="text-sm text-green-400 mt-1 font-medium">
             Sign: {GESTURE_LABELS[gesture]}
+            <span className="text-zinc-500 font-normal">
+              {' '}
+              ({SIGN_HAND_REQUIREMENTS[gesture] ?? 'one or two'} hands)
+            </span>
           </p>
         )}
         {status === 'connected' && (
-          <div className="flex gap-2 mt-2 text-xs sm:text-sm">
-            {SPELL_SEQUENCE.map((sign) => {
-              const index = SPELL_SEQUENCE.indexOf(sign);
-              const done = sequenceProgress.length > index;
-              const current =
-                sequenceProgress.length === index && gesture === sign;
+          <div className="mt-2 space-y-1.5">
+            {SPELL_RECIPES.map((recipe) => {
+              const isActive =
+                activeRecipeIds.length === 0 ||
+                activeRecipeIds.includes(recipe.id);
               return (
-                <span
-                  key={sign}
-                  className={`px-2 py-0.5 rounded ${
-                    done
-                      ? 'bg-orange-600 text-white'
-                      : current
-                        ? 'bg-orange-500/40 text-orange-200 ring-1 ring-orange-400'
-                        : 'bg-zinc-800 text-zinc-400'
-                  }`}
+                <div
+                  key={recipe.id}
+                  className={`text-xs sm:text-sm ${isActive ? 'opacity-100' : 'opacity-40'}`}
                 >
-                  {GESTURE_LABELS[sign]}
-                </span>
+                  <span className="text-zinc-400 mr-2">{recipe.label}:</span>
+                  <span className="inline-flex flex-wrap gap-1">
+                    {recipe.sequence.map((sign) => (
+                      <SignPill
+                        key={`${recipe.id}-${sign}`}
+                        sign={sign}
+                        sequence={recipe.sequence}
+                        progress={sequenceProgress}
+                        gesture={gesture}
+                        isActive={isActive}
+                      />
+                    ))}
+                  </span>
+                </div>
               );
             })}
           </div>
@@ -186,7 +222,9 @@ export default function VideoChat() {
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-lg text-zinc-300">
-              {STATUS_MESSAGES[status] ?? 'Loading...'}
+              {localStream && !connected
+                ? 'Connecting to server...'
+                : STATUS_MESSAGES[status] ?? 'Loading...'}
             </p>
           </div>
         </div>

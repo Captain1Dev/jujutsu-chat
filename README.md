@@ -1,12 +1,50 @@
 # JutsuChat
 
-Random peer-to-peer video chat with real-time hand tracking and gesture-based spells.
+**Random peer-to-peer video chat where you cast spells with your hands.**
+
+Get matched with a stranger, then perform a sequence of hand signs on camera (e.g. *Tiger → Bird → Dragon*). The browser recognizes the signs in real time with computer vision, and the spell effect appears on **both** users' screens instantly.
+
+![React](https://img.shields.io/badge/React_19-20232A?logo=react&logoColor=61DAFB)
+![WebRTC](https://img.shields.io/badge/WebRTC-333333?logo=webrtc&logoColor=white)
+![MediaPipe](https://img.shields.io/badge/MediaPipe_Hands-0097A7?logo=google&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-339933?logo=nodedotjs&logoColor=white)
+![Socket.io](https://img.shields.io/badge/Socket.io-010101?logo=socketdotio&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)
+
+## How it works
+
+```
+ Browser A                       Signaling server                      Browser B
+ ─────────                       ────────────────                      ─────────
+ camera ─► MediaPipe Hands       Socket.io matchmaker                  camera ─► MediaPipe Hands
+           │ 21 landmarks/hand   (FIFO queue → private room)                     │
+           ▼                     relays offer / answer / ICE                     ▼
+ gesture scorer ─► stabilizer ─► spell engine                          gesture scorer ─► ...
+                                     │
+                                     └──── WebRTC data channel ("spells") ────►  effect overlay
+ ◄════════════════════ peer-to-peer audio/video (WebRTC) ════════════════════►
+```
+
+- **Matchmaking & signaling** — A Node/Socket.io server keeps a FIFO waiting queue, pairs users into private rooms, assigns offerer/answerer roles, and relays SDP offers/answers and ICE candidates. A **Next** button tears down the room and re-queues both users. Media never touches the server.
+- **Gesture recognition** — Each frame, MediaPipe returns 21 3D landmarks per hand. Custom scorers compute a confidence for every sign from finger extension/curl, knuckle orientation, and two-hand geometry (interlocking fingers for *Snake*, horns for *Ram*, etc.). A sign only wins if it clears a minimum score **and** beats the runner-up by a margin.
+- **Noise filtering** — A frame-based stabilizer requires a sign to persist for ~10 frames before it's confirmed and ~6 frames before it's released, so jittery tracking doesn't produce false casts.
+- **Spell engine** — A small state machine matches confirmed signs against multiple recipes at once within a 3-second window, de-duplicating held signs, and prunes recipes as the sequence diverges.
+- **Real-time sync** — When a spell completes, it's broadcast over an ordered WebRTC data channel so both peers render the effect together with no server round-trip.
+
+## Spells
+
+| Spell | Sequence |
+|-------|----------|
+| 🔥 Fireball | Tiger → Bird → Dragon |
+| 🌊 Water Dragon | Tiger → Snake → Ram |
+| 🪨 Earth Wall | Boar → Dragon → Bird |
 
 ## Stack
 
-- **Frontend:** React (Vite) + Tailwind CSS + MediaPipe Hands
+- **Frontend:** React 19 (Vite) + Tailwind CSS + MediaPipe Hands
 - **Signaling:** Node.js + Express + Socket.io
-- **Video:** WebRTC + Data Channels
+- **Video:** WebRTC (`RTCPeerConnection`) + Data Channels
+- **Hosting:** Vercel (client) + Render (signaling server)
 
 ## Local development
 
